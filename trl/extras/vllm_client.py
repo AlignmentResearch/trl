@@ -297,6 +297,9 @@ class VLLMClient:
         for name, param in model.named_parameters():
             # Update each parameter individually
             self.update_named_param(name, param.data)
+            
+    # TODO(oskar): new interface for updating lora params
+    # https://github.com/AlignmentResearch/llm/blob/2aef8be95ed7e182c096a8e8135381bc4a58ee43/split/generation/vllm_backed.py#L111
 
     def reset_prefix_cache(self):
         """

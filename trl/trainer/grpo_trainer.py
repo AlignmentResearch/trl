@@ -918,8 +918,9 @@ class GRPOTrainer(Trainer):
             and self.is_fsdp_enabled
             and self.vllm_mode == "server"
         ):
-            # TODO: special handling for PEFT with FSDP and vLLM server
+            # TODO(oskar): special handling for PEFT with FSDP and vLLM server
             # Need to avoid summoning full params somehow
+            # https://github.com/AlignmentResearch/llm/blob/2aef8be95ed7e182c096a8e8135381bc4a58ee43/split/training/huggingface.py#L105
             pass
         elif is_peft_model(self.model):
             # With PEFT and FSDP/DeepSpeed ZeRO Stage 3, we must gather the full model at once before merging, as
