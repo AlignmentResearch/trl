@@ -158,6 +158,8 @@ class ScriptArguments:
             Model name or path to load the model from.
         revision (`str` or `None`, *optional*, defaults to `None`):
             Revision to use for the model. If not specified, the default branch will be used.
+        enable_lora (`bool`, *optional*, defaults to `False`):
+            Whether to enable LoRA.
         tensor_parallel_size (`int`, *optional*, defaults to `1`):
             Number of tensor parallel workers to use.
         data_parallel_size (`int`, *optional*, defaults to `1`):
@@ -199,7 +201,13 @@ class ScriptArguments:
     )
     revision: Optional[str] = field(
         default=None,
-        metadata={"help": "Revision to use for the model. If not specified, the default branch will be used."},
+        metadata={
+            "help": "Revision to use for the model. If not specified, the default branch will be used."
+        },
+    )
+    enable_lora: bool = field(
+        default=False,
+        metadata={"help": "Whether to enable LoRA."},
     )
     tensor_parallel_size: int = field(
         default=1,
@@ -290,6 +298,7 @@ def llm_worker(
     llm = LLM(
         model=script_args.model,
         revision=script_args.revision,
+        enable_lora=script_args.enable_lora,
         tensor_parallel_size=script_args.tensor_parallel_size,
         gpu_memory_utilization=script_args.gpu_memory_utilization,
         enforce_eager=script_args.enforce_eager,

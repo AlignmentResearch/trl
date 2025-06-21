@@ -913,7 +913,15 @@ class GRPOTrainer(Trainer):
         else:
             gather_if_zero3 = nullcontext
 
-        if is_peft_model(self.model):
+        if (
+            is_peft_model(self.model)
+            and self.is_fsdp_enabled
+            and self.vllm_mode == "server"
+        ):
+            # TODO: special handling for PEFT with FSDP and vLLM server
+            # Need to avoid summoning full params somehow
+            pass
+        elif is_peft_model(self.model):
             # With PEFT and FSDP/DeepSpeed ZeRO Stage 3, we must gather the full model at once before merging, as
             # merging adapters in a sharded manner is not supported.
             # TODO: does this work with FSDP?

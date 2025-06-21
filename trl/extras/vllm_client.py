@@ -173,6 +173,7 @@ class VLLMClient:
         top_k: int = -1,
         min_p: float = 0.0,
         max_tokens: int = 16,
+        lora_request: Optional[LoRARequest] = None,
         guided_decoding_regex: Optional[str] = None,
         generation_kwargs: Optional[dict] = None,
     ) -> list[list[int]]:
@@ -196,6 +197,8 @@ class VLLMClient:
                 Minimum probability for sampling.
             max_tokens (`int`, *optional*, defaults to `16`):
                 Maximum number of tokens to generate for each prompt.
+            lora_request (`LoRARequest` or `None`, *optional*, defaults to `None`):
+                Details of LoRA adapter to apply for the generation.
             guided_decoding_regex (`str` or `None`, *optional*, defaults to `None`):
                 Regular expression to guide the decoding process.
             generation_kwargs (`dict` or `None`, *optional*, defaults to `None`):
@@ -219,6 +222,7 @@ class VLLMClient:
                 "top_k": top_k,
                 "min_p": min_p,
                 "max_tokens": max_tokens,
+                "lora_request": lora_request,
                 "guided_decoding_regex": guided_decoding_regex,
                 "generation_kwargs": generation_kwargs or {},
             },
