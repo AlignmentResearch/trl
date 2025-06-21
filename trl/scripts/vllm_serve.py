@@ -201,9 +201,7 @@ class ScriptArguments:
     )
     revision: Optional[str] = field(
         default=None,
-        metadata={
-            "help": "Revision to use for the model. If not specified, the default branch will be used."
-        },
+        metadata={"help": "Revision to use for the model. If not specified, the default branch will be used."},
     )
     enable_lora: bool = field(
         default=False,
