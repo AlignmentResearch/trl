@@ -440,7 +440,7 @@ def main(script_args: ScriptArguments):
         top_k: int = -1
         min_p: float = 0.0
         max_tokens: int = 16
-        lora_request: Optional[LoRARequest] = None,
+        lora_request: Optional[LoRARequest] = None
         guided_decoding_regex: Optional[str] = None
         generation_kwargs: dict = field(default_factory=dict)
 
