@@ -431,6 +431,16 @@ def main(script_args: ScriptArguments):
         """
         return {"world_size": script_args.tensor_parallel_size * script_args.data_parallel_size}
 
+    class PydanticLoRARequest(BaseModel):
+        """Pydantic-compatible LoRA request model."""
+        lora_name: str
+        lora_int_id: int
+        lora_path: str
+        
+        def to_vllm_lora_request(self) -> LoRARequest:
+            """Convert to vLLM LoRARequest object."""
+            return LoRARequest(self.lora_name, self.lora_int_id, self.lora_path)
+
     class GenerateRequest(BaseModel):
         prompts: list[str]
         n: int = 1
@@ -440,7 +450,7 @@ def main(script_args: ScriptArguments):
         top_k: int = -1
         min_p: float = 0.0
         max_tokens: int = 16
-        lora_request: Optional[LoRARequest] = None
+        lora_request: Optional[PydanticLoRARequest] = None
         guided_decoding_regex: Optional[str] = None
         generation_kwargs: dict = field(default_factory=dict)
 
@@ -510,7 +520,9 @@ def main(script_args: ScriptArguments):
             # with vLLM's requirement, and we later ignore the result.
             if not prompts:
                 prompts = ["<placeholder>"]
-            kwargs = {"prompts": prompts, "sampling_params": sampling_params, "lora_request": request.lora_request}
+            # Convert PydanticLoRARequest to vLLM LoRARequest if provided
+            vllm_lora_request = request.lora_request.to_vllm_lora_request() if request.lora_request else None
+            kwargs = {"prompts": prompts, "sampling_params": sampling_params, "lora_request": vllm_lora_request}
             connection.send({"type": "call", "method": "generate", "kwargs": kwargs})
 
         # Receive results
