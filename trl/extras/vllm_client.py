@@ -33,6 +33,7 @@ if is_requests_available():
 if is_vllm_available():
     from vllm.distributed.device_communicators.pynccl import PyNcclCommunicator
     from vllm.distributed.utils import StatelessProcessGroup
+    from vllm.lora.request import LoRARequest
 
     if is_vllm_ascend_available():
         from vllm_ascend.distributed.device_communicators.pyhccl import PyHcclCommunicator as PyNcclCommunicator
@@ -298,9 +299,6 @@ class VLLMClient:
             # Update each parameter individually
             self.update_named_param(name, param.data)
             
-    # TODO(oskar): new interface for updating lora params
-    # https://github.com/AlignmentResearch/llm/blob/2aef8be95ed7e182c096a8e8135381bc4a58ee43/split/generation/vllm_backed.py#L111
-
     def reset_prefix_cache(self):
         """
         Resets the prefix cache for the model.
