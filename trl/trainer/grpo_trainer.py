@@ -873,7 +873,7 @@ class GRPOTrainer(Trainer):
             all_logps.append(logps)
         return torch.cat(all_logps, dim=0)
 
-    def _sync_fsdp_params_to_vllm(self, module: nn.Module, prefix: str = "", visited=None):
+    def _sync_fsdp_params_to_vllm(self, module: nn.Module, prefix: str = "", visited=None, move_static_params: bool = False):
         """Memory-efficient post-order traversal of FSDP modules to extract full parameters and sync with vLLM."""
         if visited is None:
             visited = set()
@@ -881,7 +881,7 @@ class GRPOTrainer(Trainer):
         for child_name, child_module in module.named_children():
             child_prefix = f"{prefix}.{child_name}" if prefix else child_name
             self._sync_fsdp_params_to_vllm(
-                child_module, prefix=child_prefix, visited=visited
+                child_module, prefix=child_prefix, visited=visited, move_static_params=move_static_params
             )  # recurse into the child
 
         if isinstance(module, FSDP):
@@ -894,6 +894,9 @@ class GRPOTrainer(Trainer):
                     if full_name in visited:
                         continue  # skip FSDP subtrees already traversed
                     visited.add(full_name)
+                    if not param.requires_grad and not move_static_params:
+                        # Useful e.g. for PEFT where most parameters are static
+                        continue
 
                     if self.vllm_mode == "server" and self.accelerator.is_main_process:
                         self.vllm_client.update_named_param(full_name, param.data)
@@ -924,7 +927,7 @@ class GRPOTrainer(Trainer):
                 if self.is_fsdp_enabled:  # note if using FSDP, gather_if_zero3 is nullcontext
                     # Update vLLM weights while parameters are gathered
                     # For PEFT with FSDP we need to use the memory efficient post-order traversal
-                    self._sync_fsdp_params_to_vllm(self.model)
+                    self._sync_fsdp_params_to_vllm(self.model, move_static_params=True)
                 else:
                     # DeepSpeed ZeRO-3 with PEFT
                     for name, param in self.model.named_parameters():

@@ -24,6 +24,7 @@ from multiprocessing.connection import Connection
 from typing import Optional
 
 import torch
+from vllm.lora.request import LoRARequest
 
 from trl import TrlParser
 from trl.import_utils import (
@@ -158,6 +159,8 @@ class ScriptArguments:
             Model name or path to load the model from.
         revision (`str` or `None`, *optional*, defaults to `None`):
             Revision to use for the model. If not specified, the default branch will be used.
+        enable_lora (`bool`, *optional*, defaults to `False`):
+            Whether to enable LoRA.
         tensor_parallel_size (`int`, *optional*, defaults to `1`):
             Number of tensor parallel workers to use.
         data_parallel_size (`int`, *optional*, defaults to `1`):
@@ -200,6 +203,10 @@ class ScriptArguments:
     revision: Optional[str] = field(
         default=None,
         metadata={"help": "Revision to use for the model. If not specified, the default branch will be used."},
+    )
+    enable_lora: bool = field(
+        default=False,
+        metadata={"help": "Whether to enable LoRA."},
     )
     tensor_parallel_size: int = field(
         default=1,
@@ -290,6 +297,7 @@ def llm_worker(
     llm = LLM(
         model=script_args.model,
         revision=script_args.revision,
+        enable_lora=script_args.enable_lora,
         tensor_parallel_size=script_args.tensor_parallel_size,
         gpu_memory_utilization=script_args.gpu_memory_utilization,
         enforce_eager=script_args.enforce_eager,
@@ -423,6 +431,16 @@ def main(script_args: ScriptArguments):
         """
         return {"world_size": script_args.tensor_parallel_size * script_args.data_parallel_size}
 
+    class PydanticLoRARequest(BaseModel):
+        """Pydantic-compatible LoRA request model."""
+        lora_name: str
+        lora_int_id: int
+        lora_path: str
+        
+        def to_vllm_lora_request(self) -> LoRARequest:
+            """Convert to vLLM LoRARequest object."""
+            return LoRARequest(self.lora_name, self.lora_int_id, self.lora_path)
+
     class GenerateRequest(BaseModel):
         prompts: list[str]
         n: int = 1
@@ -432,6 +450,7 @@ def main(script_args: ScriptArguments):
         top_k: int = -1
         min_p: float = 0.0
         max_tokens: int = 16
+        lora_request: Optional[PydanticLoRARequest] = None
         guided_decoding_regex: Optional[str] = None
         generation_kwargs: dict = field(default_factory=dict)
 
@@ -453,6 +472,7 @@ def main(script_args: ScriptArguments):
                 - `top_k` (`int`, *optional*, defaults to `-1`): Top-k sampling parameter. If set to `-1`, it disables top-k sampling.
                 - `min_p` (`float`, *optional*, defaults to `0.0`): Minimum probability threshold for sampling.
                 - `max_tokens` (`int`, *optional*, defaults to `16`): Maximum number of tokens to generate for each completion.
+                - `lora_request` (`LoRARequest`, *optional*): A request for LoRA parameters. If provided, the model will use the LoRA parameters to generate completions.
                 - `guided_decoding_regex` (`str`, *optional*): A regex pattern for guided decoding. If provided, the model will only generate tokens that match this regex pattern.
                 - `generation_kwargs` (`dict`, *optional*): Additional generation parameters to pass to the vLLM `SamplingParams`. This can include parameters like `seed`, `frequency_penalty`, etc. If it contains keys that conflict with the other parameters, they will override them.
 
@@ -500,7 +520,9 @@ def main(script_args: ScriptArguments):
             # with vLLM's requirement, and we later ignore the result.
             if not prompts:
                 prompts = ["<placeholder>"]
-            kwargs = {"prompts": prompts, "sampling_params": sampling_params}
+            # Convert PydanticLoRARequest to vLLM LoRARequest if provided
+            vllm_lora_request = request.lora_request.to_vllm_lora_request() if request.lora_request else None
+            kwargs = {"prompts": prompts, "sampling_params": sampling_params, "lora_request": vllm_lora_request}
             connection.send({"type": "call", "method": "generate", "kwargs": kwargs})
 
         # Receive results
